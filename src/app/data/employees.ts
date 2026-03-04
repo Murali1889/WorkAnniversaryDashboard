@@ -1,0 +1,88 @@
+import { Employee } from "../types/employee";
+
+export const employees: Employee[] = [
+  {
+    id: "1",
+    name: "Sarah Johnson",
+    position: "Senior Software Engineer",
+    startDate: "2019-03-15",
+    department: "Engineering",
+  },
+  {
+    id: "2",
+    name: "Michael Chen",
+    position: "Product Manager",
+    startDate: "2020-01-20",
+    department: "Product",
+  },
+  {
+    id: "3",
+    name: "Emily Rodriguez",
+    position: "UX Designer",
+    startDate: "2018-06-10",
+    department: "Design",
+  },
+  {
+    id: "4",
+    name: "David Park",
+    position: "DevOps Engineer",
+    startDate: "2021-04-05",
+    department: "Engineering",
+  },
+  {
+    id: "5",
+    name: "Jessica Williams",
+    position: "Marketing Director",
+    startDate: "2017-09-22",
+    department: "Marketing",
+  },
+  {
+    id: "6",
+    name: "Robert Taylor",
+    position: "Data Analyst",
+    startDate: "2022-02-14",
+    department: "Analytics",
+  },
+  {
+    id: "7",
+    name: "Amanda Lewis",
+    position: "HR Manager",
+    startDate: "2019-07-08",
+    department: "Human Resources",
+  },
+  {
+    id: "8",
+    name: "James Martinez",
+    position: "Sales Manager",
+    startDate: "2020-11-30",
+    department: "Sales",
+  },
+  {
+    id: "9",
+    name: "Lisa Anderson",
+    position: "Frontend Developer",
+    startDate: "2021-08-16",
+    department: "Engineering",
+  },
+  {
+    id: "10",
+    name: "Kevin Thompson",
+    position: "QA Lead",
+    startDate: "2018-12-03",
+    department: "Quality Assurance",
+  },
+  {
+    id: "11",
+    name: "Maria Garcia",
+    position: "Content Strategist",
+    startDate: "2022-05-20",
+    department: "Marketing",
+  },
+  {
+    id: "12",
+    name: "Chris Brown",
+    position: "Backend Developer",
+    startDate: "2019-10-12",
+    department: "Engineering",
+  },
+];
