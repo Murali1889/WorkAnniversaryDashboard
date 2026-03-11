@@ -1,29 +1,135 @@
-import { useState } from "react";
-import { employees } from "./data/employees";
+import { useState, useEffect } from "react";
+import { Employee } from "./types/employee";
 import {
   calculateAnniversaries,
   groupMilestonesByMonth,
 } from "./utils/anniversaryCalculator";
 import { TimelineMilestone } from "./components/TimelineMilestone";
 import { MonthlyAccordion } from "./components/MonthlyAccordion";
+import { LoginPage } from "./components/LoginPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { Calendar, List } from "lucide-react";
+import { Calendar, List, LogOut, Loader2, RefreshCw } from "lucide-react";
 
 export default function App() {
+  const [token, setToken] = useState<string | null>(
+    sessionStorage.getItem("auth_token")
+  );
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
 
+  const handleLogin = (newToken: string) => {
+    sessionStorage.setItem("auth_token", newToken);
+    setToken(newToken);
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("auth_token");
+    setToken(null);
+    setEmployees([]);
+  };
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchEmployees = (authToken: string, isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError("");
+
+    fetch("/api/employees", {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+      .then((res) => {
+        if (res.status === 401) {
+          handleLogout();
+          return null;
+        }
+        if (!res.ok) throw new Error("Failed to fetch employees");
+        return res.json();
+      })
+      .then((data) => {
+        if (data) setEmployees(data);
+        setLoading(false);
+        setRefreshing(false);
+      })
+      .catch((err) => {
+        setError(err.message || "Failed to load data");
+        setLoading(false);
+        setRefreshing(false);
+      });
+  };
+
+  const handleRefresh = () => {
+    if (token) fetchEmployees(token, true);
+  };
+
+  useEffect(() => {
+    if (token) fetchEmployees(token);
+  }, [token]);
+
+  if (!token) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-blue-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 text-lg">Loading employee data from Zoho...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
+          <p className="text-red-600 text-lg mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const milestones = calculateAnniversaries(employees, selectedYear);
   const groupedByMonth = groupMilestonesByMonth(milestones);
-
-  // Sort months to show them in order
   const sortedMonths = Array.from(groupedByMonth.keys()).sort((a, b) => a - b);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8 text-center">
+        <div className="mb-8 text-center relative">
+          <div className="absolute right-0 top-0 flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
+          </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
             Work Anniversary Timeline
           </h1>

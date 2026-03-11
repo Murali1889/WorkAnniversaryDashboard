@@ -11,7 +11,8 @@ export const calculateAnniversaries = (
     const startYear = startDate.getFullYear();
     const years = currentYear - startYear;
 
-    if (years > 0) {
+    const MILESTONE_YEARS = [3, 5, 7, 10];
+    if (MILESTONE_YEARS.includes(years)) {
       const anniversaryDate = new Date(
         currentYear,
         startDate.getMonth(),
