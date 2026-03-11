@@ -32,6 +32,23 @@ function formatZohoDate(dateStr) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function earliestDate(d) {
+  const candidates = [
+    d['Dateofjoining'],
+    d['Contractor_Start_Date'],
+    d['FTE_Start_Date'],
+    d['Intern_Start_Date'],
+  ];
+  let earliest = null;
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const parsed = new Date(raw);
+    if (isNaN(parsed.getTime())) continue;
+    if (!earliest || parsed < earliest) earliest = parsed;
+  }
+  return earliest;
+}
+
 async function fetchAllEmployees(accessToken) {
   const employees = [];
   let index = 1;
@@ -53,11 +70,12 @@ async function fetchAllEmployees(accessToken) {
 
       if (d['Employeestatus'] !== 'Active' || d['Employee_type'] !== 'FT') continue;
 
+      const start = earliestDate(d);
       employees.push({
         id: d['EmployeeID'] || empId,
         name: ((d['FirstName'] || '') + ' ' + (d['LastName'] || '')).trim() || 'Unknown',
         position: d['Designation'] || '',
-        startDate: formatZohoDate(d['Dateofjoining'] || ''),
+        startDate: start ? formatZohoDate(start.toISOString()) : formatZohoDate(d['Dateofjoining'] || ''),
         department: d['Department'] || '',
         reportingTo: d['Reporting_To'] || '',
       });
