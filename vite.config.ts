@@ -47,7 +47,6 @@ function earliestDate(d: any): Date | null {
     d['Dateofjoining'],
     d['Contractor_Start_Date'],
     d['FTE_Start_Date'],
-    d['Intern_Start_Date'],
   ]
   let earliest: Date | null = null
   for (const raw of candidates) {
