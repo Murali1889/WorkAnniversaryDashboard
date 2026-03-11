@@ -67,7 +67,7 @@ async function fetchAllEmployees(accessToken) {
       const d = Array.isArray(rec[empId]) ? rec[empId][0] : rec[empId];
       if (!d) continue;
 
-      if (d['Employeestatus'] !== 'Active' || d['Employee_type'] !== 'FT') continue;
+      if (d['Employeestatus'] !== 'Active' || (d['Employee_type'] !== 'FT' && d['Employee_type'] !== 'Contract')) continue;
 
       const start = earliestDate(d);
       employees.push({
