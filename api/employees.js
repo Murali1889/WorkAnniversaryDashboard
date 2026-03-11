@@ -59,6 +59,7 @@ async function fetchAllEmployees(accessToken) {
         position: d['Designation'] || '',
         startDate: formatZohoDate(d['Dateofjoining'] || ''),
         department: d['Department'] || '',
+        reportingTo: d['Reporting_To'] || '',
       });
     }
 

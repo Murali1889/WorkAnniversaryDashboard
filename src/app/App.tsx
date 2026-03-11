@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
-import { Employee } from "./types/employee";
+import { Employee, AnniversaryMilestone } from "./types/employee";
 import {
   calculateAnniversaries,
   groupMilestonesByMonth,
 } from "./utils/anniversaryCalculator";
 import { TimelineMilestone } from "./components/TimelineMilestone";
 import { MonthlyAccordion } from "./components/MonthlyAccordion";
+import { CategoryView } from "./components/CategoryView";
+import { PersonDetailDialog } from "./components/PersonDetailDialog";
 import { LoginPage } from "./components/LoginPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { Calendar, List, LogOut, Loader2, RefreshCw } from "lucide-react";
+import { Calendar, List, LogOut, Loader2, RefreshCw, Award } from "lucide-react";
 
 export default function App() {
   const [token, setToken] = useState<string | null>(
@@ -20,6 +22,16 @@ export default function App() {
 
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  // Dialog state
+  const [selectedMilestone, setSelectedMilestone] =
+    useState<AnniversaryMilestone | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const handlePersonClick = (milestone: AnniversaryMilestone) => {
+    setSelectedMilestone(milestone);
+    setDialogOpen(true);
+  };
 
   const handleLogin = (newToken: string) => {
     sessionStorage.setItem("auth_token", newToken);
@@ -161,14 +173,18 @@ export default function App() {
 
         {/* Tabs for different views */}
         <Tabs defaultValue="timeline" className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
+          <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 mb-8">
             <TabsTrigger value="timeline" className="flex items-center gap-2">
               <List className="w-4 h-4" />
-              Timeline View
+              Timeline
             </TabsTrigger>
             <TabsTrigger value="monthly" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              Monthly View
+              Monthly
+            </TabsTrigger>
+            <TabsTrigger value="awards" className="flex items-center gap-2">
+              <Award className="w-4 h-4" />
+              Awards
             </TabsTrigger>
           </TabsList>
 
@@ -192,6 +208,7 @@ export default function App() {
                         key={milestone.employee.id}
                         milestone={milestone}
                         isLast={index === milestones.length - 1}
+                        onClick={handlePersonClick}
                       />
                     ))}
                   </div>
@@ -223,6 +240,7 @@ export default function App() {
                     month={month}
                     milestones={groupedByMonth.get(month) || []}
                     year={selectedYear}
+                    onPersonClick={handlePersonClick}
                   />
                 ))
               ) : (
@@ -231,6 +249,22 @@ export default function App() {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          {/* Awards View */}
+          <TabsContent value="awards">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-1">
+                Award Categories ({selectedYear})
+              </h2>
+              <p className="text-gray-500">
+                Milestones grouped by award tier
+              </p>
+            </div>
+            <CategoryView
+              milestones={milestones}
+              onPersonClick={handlePersonClick}
+            />
           </TabsContent>
         </Tabs>
 
@@ -256,6 +290,13 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Person Detail Dialog */}
+      <PersonDetailDialog
+        milestone={selectedMilestone}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   );
 }

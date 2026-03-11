@@ -6,9 +6,10 @@ import { Badge } from "./ui/badge";
 interface TimelineMilestoneProps {
   milestone: AnniversaryMilestone;
   isLast?: boolean;
+  onClick?: (milestone: AnniversaryMilestone) => void;
 }
 
-export function TimelineMilestone({ milestone, isLast = false }: TimelineMilestoneProps) {
+export function TimelineMilestone({ milestone, isLast = false, onClick }: TimelineMilestoneProps) {
   const { employee, years, date } = milestone;
 
   const getMilestoneColor = (years: number) => {
@@ -20,7 +21,10 @@ export function TimelineMilestone({ milestone, isLast = false }: TimelineMilesto
   return (
     <div className="relative flex flex-col items-center min-w-[280px]">
       {/* Content Card - positioned above the timeline */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow mb-4 w-full">
+      <div
+        onClick={() => onClick?.(milestone)}
+        className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow mb-4 w-full cursor-pointer"
+      >
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

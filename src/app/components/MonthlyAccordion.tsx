@@ -13,12 +13,14 @@ interface MonthlyAccordionProps {
   month: number;
   milestones: AnniversaryMilestone[];
   year: number;
+  onPersonClick?: (milestone: AnniversaryMilestone) => void;
 }
 
 export function MonthlyAccordion({
   month,
   milestones,
   year,
+  onPersonClick,
 }: MonthlyAccordionProps) {
   const monthName = monthNames[month];
 
@@ -47,7 +49,8 @@ export function MonthlyAccordion({
             {milestones.map((milestone) => (
               <div
                 key={milestone.employee.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
+                onClick={() => onPersonClick?.(milestone)}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-full">

@@ -1,4 +1,5 @@
-import { Employee, AnniversaryMilestone } from "../types/employee";
+import { Employee, AnniversaryMilestone, AwardCategory } from "../types/employee";
+import { AWARD_CATEGORIES } from "../config/awards";
 
 export const calculateAnniversaries = (
   employees: Employee[],
@@ -77,4 +78,23 @@ export const getYearSuffix = (years: number): string => {
   if (years === 2) return "2nd";
   if (years === 3) return "3rd";
   return `${years}th`;
+};
+
+export const groupMilestonesByCategory = (
+  milestones: AnniversaryMilestone[]
+): Map<AwardCategory, AnniversaryMilestone[]> => {
+  const grouped = new Map<AwardCategory, AnniversaryMilestone[]>();
+
+  for (const cat of AWARD_CATEGORIES) {
+    grouped.set(cat.key, []);
+  }
+
+  for (const m of milestones) {
+    const cat = AWARD_CATEGORIES.find((c) => c.years === m.years);
+    if (cat) {
+      grouped.get(cat.key)!.push(m);
+    }
+  }
+
+  return grouped;
 };
