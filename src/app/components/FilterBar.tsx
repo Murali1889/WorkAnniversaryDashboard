@@ -19,7 +19,7 @@ export function FilterBar({ filters, onChange, departments, roles }: FilterBarPr
   const set = (key: keyof Filters, value: string) =>
     onChange({ ...filters, [key]: value });
 
-  const hasFilters = filters.search || filters.department || filters.role || filters.month;
+  const hasFilters = !!(filters.search || filters.department || filters.role || filters.month);
 
   const clearAll = () =>
     onChange({ search: "", department: "", role: "", month: "" });

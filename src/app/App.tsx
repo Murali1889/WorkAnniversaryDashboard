@@ -172,11 +172,11 @@ export default function App() {
 
   // Extract unique departments & roles for filter dropdowns
   const departments = useMemo(() =>
-    [...new Set(allMilestones.map((m) => m.employee.department).filter(Boolean))].sort(),
+    [...new Set(allMilestones.map((m) => String(m.employee.department || "")).filter(Boolean))].sort(),
     [allMilestones]
   );
   const roles = useMemo(() =>
-    [...new Set(allMilestones.map((m) => m.employee.position).filter(Boolean))].sort(),
+    [...new Set(allMilestones.map((m) => String(m.employee.position || "")).filter(Boolean))].sort(),
     [allMilestones]
   );
 
@@ -185,7 +185,7 @@ export default function App() {
   const groupedByMonth = groupMilestonesByMonth(milestones);
   const sortedMonths = Array.from(groupedByMonth.keys()).sort((a, b) => a - b);
 
-  const hasActiveFilters = filters.search || filters.department || filters.role || filters.month;
+  const hasActiveFilters = !!(filters.search || filters.department || filters.role || filters.month);
 
   // Stats (from unfiltered data)
   const totalTasks = CELEBRATION_TASK_TEMPLATES.length;
