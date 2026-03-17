@@ -35,7 +35,7 @@ export interface BotReminder {
   team: string;
   daysBefore: number;
   expectedDate: Date;
-  status: "sent" | "pending";
+  status: "sent" | "pending" | "overdue";
 }
 
 export type AwardCategory = "builders" | "stewards" | "anchors" | "legacy";

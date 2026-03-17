@@ -30,7 +30,14 @@ export function computeReminders(
         entry.status === "Delivered"
     );
 
-    const status: "sent" | "pending" = match ? "sent" : "pending";
+    let status: "sent" | "pending" | "overdue";
+    if (match) {
+      status = "sent";
+    } else if (today > expectedDate) {
+      status = "overdue";
+    } else {
+      status = "pending";
+    }
 
     return {
       label: tpl.label,

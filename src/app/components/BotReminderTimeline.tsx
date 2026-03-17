@@ -45,7 +45,9 @@ export function BotReminderTimeline({
               className={`w-[18px] h-[18px] rounded-full border-2 shrink-0 mt-0.5 ${
                 r.status === "sent"
                   ? "bg-green-500 border-green-600"
-                  : "bg-gray-200 border-gray-300"
+                  : r.status === "overdue"
+                    ? "bg-red-500 border-red-600"
+                    : "bg-gray-200 border-gray-300"
               }`}
             />
             {/* Content */}
@@ -59,10 +61,12 @@ export function BotReminderTimeline({
                   className={
                     r.status === "sent"
                       ? "bg-green-100 text-green-700 border-green-300"
-                      : "bg-gray-100 text-gray-500 border-gray-300"
+                      : r.status === "overdue"
+                        ? "bg-red-100 text-red-700 border-red-300"
+                        : "bg-gray-100 text-gray-500 border-gray-300"
                   }
                 >
-                  {r.status === "sent" ? "Sent" : "Pending"}
+                  {r.status === "sent" ? "Sent" : r.status === "overdue" ? "Not Sent" : "Pending"}
                 </Badge>
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
