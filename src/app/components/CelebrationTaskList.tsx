@@ -2,7 +2,6 @@ import type { CelebrationTask } from "../types/employee";
 import { getCompletionPercent } from "../utils/celebrationStorage";
 import { Checkbox } from "./ui/checkbox";
 import { Progress } from "./ui/progress";
-import { CalendarDays, User } from "lucide-react";
 
 interface CelebrationTaskListProps {
   tasks: CelebrationTask[];
@@ -16,6 +15,7 @@ export function CelebrationTaskList({
   milestoneDate,
 }: CelebrationTaskListProps) {
   const percent = getCompletionPercent(tasks);
+  const done = tasks.filter((t) => t.completed).length;
 
   function getDueDate(daysBefore: number): string {
     const d = new Date(milestoneDate);
@@ -24,51 +24,33 @@ export function CelebrationTaskList({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-700">
-          Preparation Progress
+    <div>
+      {/* Progress */}
+      <div className="flex items-center gap-3 mb-4">
+        <Progress value={percent} className="h-2 flex-1" />
+        <span className={`text-xs font-semibold ${percent === 100 ? "text-green-600" : "text-gray-500"}`}>
+          {done}/{tasks.length}
         </span>
-        <span className="text-sm font-semibold text-gray-900">{percent}%</span>
       </div>
-      <Progress value={percent} className="h-2" />
 
-      <div className="space-y-3 mt-4">
+      {/* Tasks */}
+      <div className="rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
         {tasks.map((task) => (
           <div
             key={task.id}
-            className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
-              task.completed
-                ? "bg-green-50 border-green-200"
-                : "bg-gray-50 border-gray-200"
+            className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+              task.completed ? "bg-green-50/40" : ""
             }`}
           >
             <Checkbox
               checked={task.completed}
               onCheckedChange={() => onToggle(task.id)}
-              className="mt-0.5"
             />
             <div className="flex-1 min-w-0">
-              <p
-                className={`font-medium text-sm ${
-                  task.completed
-                    ? "line-through text-gray-400"
-                    : "text-gray-900"
-                }`}
-              >
+              <p className={`text-sm font-medium ${task.completed ? "line-through text-gray-400" : "text-gray-900"}`}>
                 {task.label}
               </p>
-              <p className="text-xs text-gray-500 mt-0.5">{task.description}</p>
-              <div className="flex items-center gap-4 mt-1.5">
-                <span className="flex items-center gap-1 text-xs text-gray-500">
-                  <User className="w-3 h-3" />
-                  {task.owner}
-                </span>
-                <span className="flex items-center gap-1 text-xs text-gray-500">
-                  <CalendarDays className="w-3 h-3" />
-                  Due {getDueDate(task.dueDaysBeforeMilestone)}
-                </span>
-              </div>
+              <p className="text-xs text-gray-500">{task.owner} · Due {getDueDate(task.dueDaysBeforeMilestone)}</p>
             </div>
           </div>
         ))}

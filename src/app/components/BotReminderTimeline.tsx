@@ -1,6 +1,6 @@
 import type { BotReminder, SentLogEntry } from "../types/employee";
 import { computeReminders } from "../utils/reminderCalculator";
-import { Badge } from "./ui/badge";
+import { Check, X, Clock } from "lucide-react";
 
 interface BotReminderTimelineProps {
   milestoneDate: Date;
@@ -17,60 +17,65 @@ export function BotReminderTimeline({
 }: BotReminderTimelineProps) {
   const reminders = computeReminders(milestoneDate, employeeId, milestoneYears, sentLog);
 
-  function formatDate(d: Date): string {
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  }
+  const sent = reminders.filter((r) => r.status === "sent").length;
+  const overdue = reminders.filter((r) => r.status === "overdue").length;
 
   return (
-    <div className="space-y-1">
-      <p className="text-sm text-gray-500 mb-4">
-        Bot reminder schedule — status from Sent Log.
-      </p>
-      <div className="relative">
+    <div>
+      {/* Summary */}
+      <div className="flex items-center gap-4 text-xs mb-4">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-green-500" />
+          {sent} sent
+        </span>
+        {overdue > 0 && (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-red-500" />
+            {overdue} not sent
+          </span>
+        )}
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-gray-300" />
+          {reminders.length - sent - overdue} pending
+        </span>
+      </div>
+
+      {/* List */}
+      <div className="rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
         {reminders.map((r: BotReminder, i: number) => (
-          <div key={i} className="flex items-start gap-4 relative pb-6 last:pb-0">
-            {/* Vertical line */}
-            {i < reminders.length - 1 && (
-              <div
-                className="absolute left-[9px] top-5 w-0.5 h-full bg-gray-200"
-                aria-hidden
-              />
+          <div
+            key={i}
+            className={`flex items-center gap-3 px-4 py-2.5 ${
+              r.status === "sent" ? "bg-green-50/40" : r.status === "overdue" ? "bg-red-50/40" : ""
+            }`}
+          >
+            {/* Status icon */}
+            {r.status === "sent" ? (
+              <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                <Check className="w-3.5 h-3.5 text-green-600" />
+              </span>
+            ) : r.status === "overdue" ? (
+              <span className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <X className="w-3.5 h-3.5 text-red-500" />
+              </span>
+            ) : (
+              <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                <Clock className="w-3.5 h-3.5 text-gray-400" />
+              </span>
             )}
-            {/* Dot */}
-            <div
-              className={`w-[18px] h-[18px] rounded-full border-2 shrink-0 mt-0.5 ${
-                r.status === "sent"
-                  ? "bg-green-500 border-green-600"
-                  : r.status === "overdue"
-                    ? "bg-red-500 border-red-600"
-                    : "bg-gray-200 border-gray-300"
-              }`}
-            />
             {/* Content */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium text-sm text-gray-900">
-                  {r.label}
-                </span>
-                <Badge
-                  variant="outline"
-                  className={
-                    r.status === "sent"
-                      ? "bg-green-100 text-green-700 border-green-300"
-                      : r.status === "overdue"
-                        ? "bg-red-100 text-red-700 border-red-300"
-                        : "bg-gray-100 text-gray-500 border-gray-300"
-                  }
-                >
-                  {r.status === "sent" ? "Sent" : r.status === "overdue" ? "Not Sent" : "Pending"}
-                </Badge>
-              </div>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Expected: {formatDate(r.expectedDate)}
+              <p className="text-sm font-medium text-gray-900">{r.label}</p>
+            </div>
+            {/* Date + Status */}
+            <div className="text-right shrink-0">
+              <p className={`text-[10px] font-medium uppercase tracking-wide ${
+                r.status === "sent" ? "text-green-600" : r.status === "overdue" ? "text-red-500" : "text-gray-400"
+              }`}>
+                {r.status === "sent" ? "Sent" : r.status === "overdue" ? "Not Sent" : "Pending"}
+              </p>
+              <p className="text-[10px] text-gray-400">
+                {r.expectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
               </p>
             </div>
           </div>

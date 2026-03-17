@@ -46,7 +46,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <PartyPopper className="w-7 h-7 text-white" />
             </div>
             <h1 className="text-xl font-bold text-gray-900">
-              Anniversary Dashboard
+              HV Anniversary Dashboard
             </h1>
             <p className="text-gray-500 text-sm mt-1">
               Sign in to view employee milestones

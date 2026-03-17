@@ -15,17 +15,6 @@ import {
 } from "./ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
-import { Separator } from "./ui/separator";
-import {
-  User,
-  Briefcase,
-  Building2,
-  CalendarDays,
-  Award,
-  Users,
-  ClipboardList,
-  Bell,
-} from "lucide-react";
 
 interface PersonDetailDialogProps {
   milestone: AnniversaryMilestone | null;
@@ -64,115 +53,92 @@ export function PersonDetailDialog({
 
   const handleToggle = (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
-    onToggleTask(
-      employee.id,
-      employee.name,
-      milestone.year,
-      years,
-      taskId,
-      !task?.completed
-    );
+    onToggleTask(employee.id, employee.name, milestone.year, years, taskId, !task?.completed);
   };
+
+  const details = [
+    { label: "Designation", value: employee.position },
+    { label: "Department", value: employee.department },
+    { label: "Reporting Manager", value: employee.reportingTo || "—" },
+    { label: "SLT", value: slt },
+    { label: "Date of Joining", value: doj.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) },
+    { label: "Milestone Date", value: formatDate(date) },
+    { label: "Award Category", value: award?.label || "—" },
+    { label: "Years Completed", value: String(years) },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <span>{employee.name}</span>
-            {award && (
-              <Badge className={award.badgeClass}>
-                {award.label} — {getYearSuffix(years)}
-              </Badge>
-            )}
-          </DialogTitle>
-          <DialogDescription>
-            {employee.position} · {employee.department}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto p-0">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-gray-100">
+          <DialogHeader>
+            <DialogTitle className="text-lg">
+              {employee.name}
+            </DialogTitle>
+            <DialogDescription className="flex items-center gap-2 mt-1">
+              <span>{employee.position} · {employee.department}</span>
+              {award && (
+                <Badge className={`${award.badgeClass} text-[10px]`}>
+                  {award.label} — {getYearSuffix(years)}
+                </Badge>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="details" className="flex items-center gap-1.5 text-xs">
-              <User className="w-3.5 h-3.5" />
-              Details
-            </TabsTrigger>
-            <TabsTrigger value="preparation" className="flex items-center gap-1.5 text-xs">
-              <ClipboardList className="w-3.5 h-3.5" />
-              Preparation
-            </TabsTrigger>
-            <TabsTrigger value="reminders" className="flex items-center gap-1.5 text-xs">
-              <Bell className="w-3.5 h-3.5" />
-              Reminders
-            </TabsTrigger>
-          </TabsList>
+        <div className="px-6 pb-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+            <TabsList className="inline-flex h-9 bg-gray-100 rounded-lg p-0.5 mb-4">
+              <TabsTrigger value="details" className="text-xs px-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                Details
+              </TabsTrigger>
+              <TabsTrigger value="preparation" className="text-xs px-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                Preparation
+              </TabsTrigger>
+              <TabsTrigger value="reminders" className="text-xs px-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                Bot Reminders
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Details Tab */}
-          <TabsContent value="details" className="mt-4">
-            <div className="space-y-3">
-              <DetailRow icon={User} label="Name" value={employee.name} />
-              <DetailRow icon={Briefcase} label="Designation" value={employee.position} />
-              <DetailRow icon={Building2} label="Team" value={employee.department} />
-              <DetailRow icon={Users} label="Reporting Manager" value={employee.reportingTo || "—"} />
-              <DetailRow icon={Users} label="SLT" value={slt} />
-              <Separator />
-              <DetailRow
-                icon={CalendarDays}
-                label="Date of Joining"
-                value={doj.toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+            {/* Details Tab */}
+            <TabsContent value="details" className="mt-0">
+              <div className="rounded-lg border border-gray-200 overflow-hidden">
+                {details.map((row, i) => (
+                  <div
+                    key={row.label}
+                    className={`flex items-center justify-between px-4 py-2.5 text-sm ${
+                      i % 2 === 0 ? "bg-gray-50/50" : "bg-white"
+                    }`}
+                  >
+                    <span className="text-gray-500">{row.label}</span>
+                    <span className="font-medium text-gray-900 text-right">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+
+            {/* Preparation Tab */}
+            <TabsContent value="preparation" className="mt-0">
+              <CelebrationTaskList
+                tasks={tasks}
+                onToggle={handleToggle}
+                milestoneDate={date}
               />
-              <DetailRow
-                icon={CalendarDays}
-                label="Milestone Date"
-                value={formatDate(date)}
+            </TabsContent>
+
+            {/* Reminders Tab */}
+            <TabsContent value="reminders" className="mt-0">
+              <BotReminderTimeline
+                milestoneDate={date}
+                employeeId={employee.id}
+                milestoneYears={years}
+                sentLog={sentLog}
               />
-              <DetailRow icon={Award} label="Award" value={award?.label || "—"} />
-              <DetailRow icon={Award} label="Years" value={`${years}`} />
-            </div>
-          </TabsContent>
-
-          {/* Preparation Tab */}
-          <TabsContent value="preparation" className="mt-4">
-            <CelebrationTaskList
-              tasks={tasks}
-              onToggle={handleToggle}
-              milestoneDate={date}
-            />
-          </TabsContent>
-
-          {/* Reminders Tab */}
-          <TabsContent value="reminders" className="mt-4">
-            <BotReminderTimeline
-              milestoneDate={date}
-              employeeId={employee.id}
-              milestoneYears={years}
-              sentLog={sentLog}
-            />
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function DetailRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <Icon className="w-4 h-4 text-gray-400 shrink-0" />
-      <span className="text-sm text-gray-500 w-36 shrink-0">{label}</span>
-      <span className="text-sm font-medium text-gray-900">{value}</span>
-    </div>
   );
 }
