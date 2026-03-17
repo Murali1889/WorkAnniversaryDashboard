@@ -1,13 +1,21 @@
-import type { BotReminder } from "../types/employee";
+import type { BotReminder, SentLogEntry } from "../types/employee";
 import { computeReminders } from "../utils/reminderCalculator";
 import { Badge } from "./ui/badge";
 
 interface BotReminderTimelineProps {
   milestoneDate: Date;
+  employeeId: string;
+  milestoneYears: number;
+  sentLog: SentLogEntry[];
 }
 
-export function BotReminderTimeline({ milestoneDate }: BotReminderTimelineProps) {
-  const reminders = computeReminders(milestoneDate);
+export function BotReminderTimeline({
+  milestoneDate,
+  employeeId,
+  milestoneYears,
+  sentLog,
+}: BotReminderTimelineProps) {
+  const reminders = computeReminders(milestoneDate, employeeId, milestoneYears, sentLog);
 
   function formatDate(d: Date): string {
     return d.toLocaleDateString("en-US", {
@@ -20,8 +28,7 @@ export function BotReminderTimeline({ milestoneDate }: BotReminderTimelineProps)
   return (
     <div className="space-y-1">
       <p className="text-sm text-gray-500 mb-4">
-        Bot reminder schedule based on milestone date. Status is computed from
-        today's date.
+        Bot reminder schedule — status from Sent Log.
       </p>
       <div className="relative">
         {reminders.map((r: BotReminder, i: number) => (

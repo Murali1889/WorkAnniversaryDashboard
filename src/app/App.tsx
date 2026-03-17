@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Employee, AnniversaryMilestone } from "./types/employee";
+import { Employee, AnniversaryMilestone, SentLogEntry } from "./types/employee";
 import {
   calculateAnniversaries,
   groupMilestonesByMonth,
@@ -17,6 +17,7 @@ export default function App() {
     sessionStorage.getItem("auth_token")
   );
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [sentLog, setSentLog] = useState<SentLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -54,19 +55,27 @@ export default function App() {
     }
     setError("");
 
-    fetch("/api/employees", {
+    const empPromise = fetch("/api/employees", {
+      headers: { Authorization: `Bearer ${authToken}` },
+    }).then((res) => {
+      if (res.status === 401) {
+        handleLogout();
+        return null;
+      }
+      if (!res.ok) throw new Error("Failed to fetch employees");
+      return res.json();
+    });
+
+    const sentLogPromise = fetch("/api/sentlog", {
       headers: { Authorization: `Bearer ${authToken}` },
     })
-      .then((res) => {
-        if (res.status === 401) {
-          handleLogout();
-          return null;
-        }
-        if (!res.ok) throw new Error("Failed to fetch employees");
-        return res.json();
-      })
-      .then((data) => {
-        if (data) setEmployees(data);
+      .then((res) => (res.ok ? res.json() : []))
+      .catch(() => []);
+
+    Promise.all([empPromise, sentLogPromise])
+      .then(([empData, logData]) => {
+        if (empData) setEmployees(empData);
+        if (Array.isArray(logData)) setSentLog(logData);
         setLoading(false);
         setRefreshing(false);
       })
@@ -296,6 +305,7 @@ export default function App() {
         milestone={selectedMilestone}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        sentLog={sentLog}
       />
     </div>
   );

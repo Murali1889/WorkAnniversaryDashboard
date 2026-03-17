@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AnniversaryMilestone } from "../types/employee";
+import type { AnniversaryMilestone, SentLogEntry } from "../types/employee";
 import { getAwardCategory } from "../config/awards";
 import { getSltForDepartment } from "../config/sltMapping";
 import { formatDate, getYearSuffix } from "../utils/anniversaryCalculator";
@@ -30,12 +30,14 @@ interface PersonDetailDialogProps {
   milestone: AnniversaryMilestone | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  sentLog: SentLogEntry[];
 }
 
 export function PersonDetailDialog({
   milestone,
   open,
   onOpenChange,
+  sentLog,
 }: PersonDetailDialogProps) {
   const [activeTab, setActiveTab] = useState("details");
 
@@ -119,7 +121,12 @@ export function PersonDetailDialog({
 
           {/* Reminders Tab */}
           <TabsContent value="reminders" className="mt-4">
-            <BotReminderTimeline milestoneDate={date} />
+            <BotReminderTimeline
+              milestoneDate={date}
+              employeeId={employee.id}
+              milestoneYears={years}
+              sentLog={sentLog}
+            />
           </TabsContent>
         </Tabs>
       </DialogContent>

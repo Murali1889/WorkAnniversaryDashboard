@@ -39,3 +39,18 @@ export interface BotReminder {
 }
 
 export type AwardCategory = "builders" | "stewards" | "anchors" | "legacy";
+
+export interface SentLogEntry {
+  logKey: string;
+  sentAt: string;
+  employeeId: string;
+  employeeName: string;
+  department: string;
+  milestone: number;
+  team: string;
+  alertLabel: string;
+  anniversaryDate: string;
+  daysUntil: number;
+  recipient: string;
+  status: string;
+}

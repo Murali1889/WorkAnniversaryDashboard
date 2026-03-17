@@ -4,6 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import type { IncomingMessage, ServerResponse } from 'http'
 
+// ─── GAS Web App URL (deploy Code.js as web app, paste URL here) ──
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwXinzBsH5UYAkFd744akbxSSWN1WrQhoaljuxBJwpLrLMRFSeulb-Rk6UmoQUunAxmHQ/exec'
+
 // ─── Zoho Config ─────────────────────────────────────────────
 const ZOHO = {
   clientId: '1000.06ZBOVAU3FXQ6SLJ4F1J90L1AVFQVG',
@@ -141,6 +144,24 @@ function apiPlugin(): Plugin {
           } catch (err: any) {
             console.error('Zoho fetch failed:', err)
             sendJson(res, 500, { error: 'Failed to fetch employee data' })
+          }
+          return
+        }
+
+        if (req.url === '/api/sentlog' && req.method === 'GET') {
+          const authHeader = req.headers.authorization || ''
+          const token = authHeader.replace('Bearer ', '')
+          if (!token || !tokens.has(token)) {
+            sendJson(res, 401, { error: 'Unauthorized' })
+            return
+          }
+          try {
+            const gasRes = await fetch(`${GAS_WEB_APP_URL}?action=sentlog`)
+            const data = await gasRes.json()
+            sendJson(res, 200, data)
+          } catch (err: any) {
+            console.error('GAS sentlog fetch failed:', err)
+            sendJson(res, 500, { error: 'Failed to fetch sent log' })
           }
           return
         }

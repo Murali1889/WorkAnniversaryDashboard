@@ -31,6 +31,9 @@ function requireAuth(req, res, next) {
   next();
 }
 
+// ─── GAS Web App URL (deploy Code.js as web app, paste URL here) ──
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwXinzBsH5UYAkFd744akbxSSWN1WrQhoaljuxBJwpLrLMRFSeulb-Rk6UmoQUunAxmHQ/exec';
+
 // ─── Zoho Config ─────────────────────────────────────────────
 const ZOHO = {
   clientId: '1000.06ZBOVAU3FXQ6SLJ4F1J90L1AVFQVG',
@@ -118,6 +121,17 @@ app.get('/api/employees', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Failed to fetch employees:', err);
     res.status(500).json({ error: 'Failed to fetch employee data' });
+  }
+});
+
+app.get('/api/sentlog', requireAuth, async (req, res) => {
+  try {
+    const gasRes = await fetch(`${GAS_WEB_APP_URL}?action=sentlog`);
+    const data = await gasRes.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to fetch sent log:', err);
+    res.status(500).json({ error: 'Failed to fetch sent log' });
   }
 });
 
