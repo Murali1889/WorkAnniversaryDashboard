@@ -1,18 +1,16 @@
 import type { AnniversaryMilestone, TaskRecord } from "../types/employee";
 import { buildTasks, getCompletionPercent, getCompletedCount } from "../utils/celebrationStorage";
 import { CELEBRATION_TASK_TEMPLATES } from "../config/celebrationTasks";
-import { getYearSuffix } from "../utils/anniversaryCalculator";
+import { getYearSuffix, formatDate } from "../utils/anniversaryCalculator";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
-import { Cake, Briefcase, CheckCircle2, Clock, Circle } from "lucide-react";
+import { Check, X, Cake } from "lucide-react";
 
 interface CompletedViewProps {
   milestones: AnniversaryMilestone[];
   taskRecords: TaskRecord[];
   onPersonClick: (milestone: AnniversaryMilestone) => void;
 }
-
-type StatusGroup = "completed" | "in-progress" | "not-started";
 
 export function CompletedView({
   milestones,
@@ -21,129 +19,131 @@ export function CompletedView({
 }: CompletedViewProps) {
   const totalTasks = CELEBRATION_TASK_TEMPLATES.length;
 
-  const grouped: Record<StatusGroup, { milestone: AnniversaryMilestone; percent: number; done: number }[]> = {
-    completed: [],
-    "in-progress": [],
-    "not-started": [],
-  };
-
-  for (const m of milestones) {
+  const rows = milestones.map((m) => {
     const tasks = buildTasks(m.employee.id, m.year, taskRecords);
     const done = getCompletedCount(tasks);
     const percent = getCompletionPercent(tasks);
+    return { milestone: m, tasks, done, percent };
+  });
 
-    const entry = { milestone: m, percent, done };
-    if (done === totalTasks) grouped.completed.push(entry);
-    else if (done > 0) grouped["in-progress"].push(entry);
-    else grouped["not-started"].push(entry);
+  // Sort: completed first, then by completion % descending, then by date
+  rows.sort((a, b) => {
+    if (a.done === totalTasks && b.done !== totalTasks) return -1;
+    if (b.done === totalTasks && a.done !== totalTasks) return 1;
+    if (b.percent !== a.percent) return b.percent - a.percent;
+    return a.milestone.date.getTime() - b.milestone.date.getTime();
+  });
+
+  const completedCount = rows.filter((r) => r.done === totalTasks).length;
+  const pendingCount = rows.length - completedCount;
+
+  if (rows.length === 0) {
+    return (
+      <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
+        <Cake className="w-10 h-10 mx-auto mb-3 opacity-40" />
+        <p>No milestones to prepare for</p>
+      </div>
+    );
   }
 
-  const sections: {
-    key: StatusGroup;
-    label: string;
-    icon: typeof CheckCircle2;
-    color: string;
-    badgeClass: string;
-    borderColor: string;
-    bgColor: string;
-  }[] = [
-    {
-      key: "completed",
-      label: "Completed",
-      icon: CheckCircle2,
-      color: "text-green-700",
-      badgeClass: "bg-green-100 text-green-700",
-      borderColor: "border-green-200",
-      bgColor: "bg-green-50",
-    },
-    {
-      key: "in-progress",
-      label: "In Progress",
-      icon: Clock,
-      color: "text-amber-700",
-      badgeClass: "bg-amber-100 text-amber-700",
-      borderColor: "border-amber-200",
-      bgColor: "bg-amber-50",
-    },
-    {
-      key: "not-started",
-      label: "Not Started",
-      icon: Circle,
-      color: "text-gray-500",
-      badgeClass: "bg-gray-100 text-gray-500",
-      borderColor: "border-gray-200",
-      bgColor: "bg-gray-50",
-    },
-  ];
-
   return (
-    <div className="space-y-8">
-      {sections.map((sec) => {
-        const items = grouped[sec.key];
-        const Icon = sec.icon;
-        return (
-          <div key={sec.key}>
-            {/* Section Header */}
-            <div
-              className={`flex items-center gap-3 p-4 rounded-t-xl border ${sec.borderColor} ${sec.bgColor}`}
-            >
-              <Icon className={`w-6 h-6 ${sec.color}`} />
-              <div className="flex-1">
-                <h3 className={`text-lg font-semibold ${sec.color}`}>
-                  {sec.label}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {items.length} {items.length === 1 ? "employee" : "employees"}
-                </p>
-              </div>
-              <Badge className={sec.badgeClass}>{items.length}</Badge>
-            </div>
+    <div className="space-y-4">
+      {/* Summary strip */}
+      <div className="flex items-center gap-6 text-sm">
+        <span className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+          <span className="text-gray-600">{completedCount} completed</span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+          <span className="text-gray-600">{pendingCount} pending</span>
+        </span>
+      </div>
 
-            {/* Cards */}
-            <div className={`border border-t-0 ${sec.borderColor} rounded-b-xl p-4`}>
-              {items.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {items.map(({ milestone: m, percent, done }) => (
-                    <div
-                      key={m.employee.id}
-                      onClick={() => onPersonClick(m)}
-                      className="p-3 rounded-lg border border-gray-100 bg-white hover:shadow-md hover:border-gray-200 transition-all cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="flex items-center justify-center w-9 h-9 bg-orange-100 rounded-full shrink-0">
-                          <Cake className="w-4 h-4 text-orange-600" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-sm text-gray-900 truncate">
-                            {m.employee.name}
-                          </p>
-                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                            <Briefcase className="w-3 h-3 shrink-0" />
-                            <span className="truncate">{m.employee.department}</span>
-                          </div>
-                        </div>
-                        <Badge className={sec.badgeClass}>
-                          {getYearSuffix(m.years)}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50/80">
+                <th className="text-left font-medium text-gray-500 px-4 py-3">Employee</th>
+                <th className="text-left font-medium text-gray-500 px-4 py-3">Milestone</th>
+                <th className="text-left font-medium text-gray-500 px-4 py-3">Date</th>
+                {CELEBRATION_TASK_TEMPLATES.map((t) => (
+                  <th key={t.id} className="text-center font-medium text-gray-500 px-3 py-3 whitespace-nowrap">
+                    {t.label}
+                  </th>
+                ))}
+                <th className="text-center font-medium text-gray-500 px-4 py-3">Progress</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ milestone: m, tasks, done, percent }) => {
+                const allDone = done === totalTasks;
+                return (
+                  <tr
+                    key={m.employee.id}
+                    onClick={() => onPersonClick(m)}
+                    className={`border-b border-gray-50 cursor-pointer transition-colors hover:bg-gray-50 ${
+                      allDone ? "bg-green-50/40" : ""
+                    }`}
+                  >
+                    {/* Employee */}
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-gray-900">{m.employee.name}</p>
+                      <p className="text-xs text-gray-500">{m.employee.department}</p>
+                    </td>
+                    {/* Milestone */}
+                    <td className="px-4 py-3">
+                      <Badge
+                        variant="secondary"
+                        className={
+                          m.years >= 10
+                            ? "bg-purple-100 text-purple-700"
+                            : m.years >= 5
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-green-100 text-green-700"
+                        }
+                      >
+                        {getYearSuffix(m.years)}
+                      </Badge>
+                    </td>
+                    {/* Date */}
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                      {m.date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </td>
+                    {/* Task columns */}
+                    {tasks.map((task) => (
+                      <td key={task.id} className="px-3 py-3 text-center">
+                        {task.completed ? (
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100">
+                            <Check className="w-3.5 h-3.5 text-green-600" />
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100">
+                            <X className="w-3.5 h-3.5 text-gray-400" />
+                          </span>
+                        )}
+                      </td>
+                    ))}
+                    {/* Progress */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 min-w-[80px]">
                         <Progress value={percent} className="h-1.5 flex-1" />
-                        <span className="text-xs text-gray-500 shrink-0">
+                        <span className={`text-xs font-medium whitespace-nowrap ${
+                          allDone ? "text-green-600" : "text-gray-500"
+                        }`}>
                           {done}/{totalTasks}
                         </span>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-sm text-gray-400 py-6">
-                  No employees in this category
-                </p>
-              )}
-            </div>
-          </div>
-        );
-      })}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
