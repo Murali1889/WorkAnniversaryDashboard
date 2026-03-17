@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Employee, AnniversaryMilestone, SentLogEntry, TaskRecord } from "./types/employee";
+import { Search, X } from "lucide-react";
+import { monthNames } from "./utils/anniversaryCalculator";
 import {
   calculateAnniversaries,
   groupMilestonesByMonth,
 } from "./utils/anniversaryCalculator";
-import { buildTasks } from "./utils/celebrationStorage";
+import { buildTasks, getCompletionPercent } from "./utils/celebrationStorage";
 import { CELEBRATION_TASK_TEMPLATES } from "./config/celebrationTasks";
-import { FilterBar, applyFilters, type Filters } from "./components/FilterBar";
 import { TimelineMilestone } from "./components/TimelineMilestone";
 import { MonthlyAccordion } from "./components/MonthlyAccordion";
 import { CategoryView } from "./components/CategoryView";
@@ -50,9 +51,10 @@ export default function App() {
 
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [filters, setFilters] = useState<Filters>({
-    search: "", department: "", role: "", month: "",
-  });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterDept, setFilterDept] = useState("");
+  const [filterRole, setFilterRole] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
 
   const [selectedMilestone, setSelectedMilestone] =
     useState<AnniversaryMilestone | null>(null);
@@ -113,18 +115,30 @@ export default function App() {
   };
 
   const handleToggleTask = (
-    employeeId: string, employeeName: string, year: number,
-    milestone: number, taskId: string, completed: boolean
+    employeeId: string,
+    employeeName: string,
+    year: number,
+    milestone: number,
+    taskId: string,
+    completed: boolean
   ) => {
     setTaskRecords((prev) => {
-      const idx = prev.findIndex((r) => r.employeeId === employeeId && r.year === year);
+      const idx = prev.findIndex(
+        (r) => r.employeeId === employeeId && r.year === year
+      );
       if (idx >= 0) {
         const updated = [...prev];
-        updated[idx] = { ...updated[idx], tasks: { ...updated[idx].tasks, [taskId]: completed } };
+        updated[idx] = {
+          ...updated[idx],
+          tasks: { ...updated[idx].tasks, [taskId]: completed },
+        };
         return updated;
       }
-      return [...prev, { employeeId, employeeName, year, milestone,
-        tasks: { [taskId]: completed }, updatedAt: new Date().toISOString() }];
+      return [
+        ...prev,
+        { employeeId, employeeName, year, milestone,
+          tasks: { [taskId]: completed }, updatedAt: new Date().toISOString() },
+      ];
     });
 
     const params = new URLSearchParams({
@@ -132,11 +146,13 @@ export default function App() {
       milestone: String(milestone), taskId, completed: String(completed),
     });
     fetch(`/api/tasks?${params}`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}` },
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
     }).catch(() => {});
   };
 
   const handleRefresh = () => { if (token) fetchEmployees(token, true); };
+
   useEffect(() => { if (token) fetchEmployees(token); }, [token]);
 
   if (!token) return <LoginPage onLogin={handleLogin} />;
@@ -158,8 +174,10 @@ export default function App() {
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
           <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
           <p className="text-red-600 mb-4">{error}</p>
-          <button onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
             Retry
           </button>
         </div>
@@ -167,27 +185,44 @@ export default function App() {
     );
   }
 
-  // All milestones for the year (unfiltered — used for stats)
   const allMilestones = calculateAnniversaries(employees, selectedYear);
 
-  // Extract unique departments & roles for filter dropdowns
-  const departments = useMemo(() =>
-    [...new Set(allMilestones.map((m) => String(m.employee.department || "")).filter(Boolean))].sort(),
-    [allMilestones]
-  );
-  const roles = useMemo(() =>
-    [...new Set(allMilestones.map((m) => String(m.employee.position || "")).filter(Boolean))].sort(),
-    [allMilestones]
-  );
+  // Build filter options from data
+  const departments: string[] = [];
+  const roles: string[] = [];
+  const deptSet = new Set<string>();
+  const roleSet = new Set<string>();
+  for (const m of allMilestones) {
+    const dept = String(m.employee.department || "");
+    const role = String(m.employee.position || "");
+    if (dept && !deptSet.has(dept)) { deptSet.add(dept); departments.push(dept); }
+    if (role && !roleSet.has(role)) { roleSet.add(role); roles.push(role); }
+  }
+  departments.sort();
+  roles.sort();
 
-  // Filtered milestones — all tabs use this
-  const milestones = applyFilters(allMilestones, filters) as AnniversaryMilestone[];
+  // Apply filters
+  let milestones = allMilestones;
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    milestones = milestones.filter((m) => m.employee.name.toLowerCase().includes(q));
+  }
+  if (filterDept) {
+    milestones = milestones.filter((m) => m.employee.department === filterDept);
+  }
+  if (filterRole) {
+    milestones = milestones.filter((m) => m.employee.position === filterRole);
+  }
+  if (filterMonth) {
+    const monthNum = parseInt(filterMonth, 10);
+    milestones = milestones.filter((m) => m.month === monthNum);
+  }
+  const isFiltering = searchQuery !== "" || filterDept !== "" || filterRole !== "" || filterMonth !== "";
+
   const groupedByMonth = groupMilestonesByMonth(milestones);
   const sortedMonths = Array.from(groupedByMonth.keys()).sort((a, b) => a - b);
 
-  const hasActiveFilters = !!(filters.search || filters.department || filters.role || filters.month);
-
-  // Stats (from unfiltered data)
+  // Compute stats (from unfiltered data)
   const totalTasks = CELEBRATION_TASK_TEMPLATES.length;
   let prepComplete = 0;
   let prepInProgress = 0;
@@ -197,7 +232,9 @@ export default function App() {
     if (done === totalTasks) prepComplete++;
     else if (done > 0) prepInProgress++;
   }
+  const prepNotStarted = allMilestones.length - prepComplete - prepInProgress;
 
+  // Upcoming within 30 days
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const upcoming30 = allMilestones.filter((m) => {
@@ -205,32 +242,51 @@ export default function App() {
     return diff >= 0 && diff <= 30;
   });
 
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFilterDept("");
+    setFilterRole("");
+    setFilterMonth("");
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top Bar */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">HV Anniversary Dashboard</h1>
+            <h1 className="text-xl font-bold text-gray-900">
+              HV Anniversary Dashboard
+            </h1>
             <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5">
               <CalendarDays className="w-3.5 h-3.5" />
               {formatToday()}
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <select value={selectedYear}
+            {/* Year Selector */}
+            <select
+              value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-              {Array.from({ length: 5 }, (_, i) => currentYear - 2 + i).map((year) => (
-                <option key={year} value={year}>{year}</option>
-              ))}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            >
+              {Array.from({ length: 5 }, (_, i) => currentYear - 2 + i).map(
+                (year) => (
+                  <option key={year} value={year}>{year}</option>
+                )
+              )}
             </select>
-            <button onClick={handleRefresh} disabled={refreshing}
-              className="text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors"
+            >
               <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
             </button>
-            <button onClick={handleLogout}
-              className="text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
@@ -239,42 +295,115 @@ export default function App() {
 
       <div className="max-w-6xl mx-auto px-6 py-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-          <StatCard icon={PartyPopper} iconBg="bg-indigo-50" iconColor="text-indigo-600" value={allMilestones.length} label="Milestones" />
-          <StatCard icon={Calendar} iconBg="bg-amber-50" iconColor="text-amber-600" value={upcoming30.length} label="Next 30 Days" />
-          <StatCard icon={CircleCheckBig} iconBg="bg-green-50" iconColor="text-green-600" value={prepComplete} label="Prep Done" />
-          <StatCard icon={AlertCircle} iconBg="bg-red-50" iconColor="text-red-500" value={allMilestones.length - prepComplete} label="Prep Pending" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center">
+                <PartyPopper className="w-5 h-5 text-indigo-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{milestones.length}</p>
+                <p className="text-xs text-gray-500">Milestones</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{upcoming30.length}</p>
+                <p className="text-xs text-gray-500">Next 30 Days</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                <CircleCheckBig className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{prepComplete}</p>
+                <p className="text-xs text-gray-500">Prep Done</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{prepNotStarted + prepInProgress}</p>
+                <p className="text-xs text-gray-500">Prep Pending</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Filter Bar */}
-        <FilterBar
-          filters={filters}
-          onChange={setFilters}
-          departments={departments}
-          roles={roles}
-        />
+        <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50"
+              />
+            </div>
+            <select value={filterDept} onChange={(e) => setFilterDept(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 min-w-[140px]">
+              <option value="">All Teams</option>
+              {departments.map((d) => (<option key={d} value={d}>{d}</option>))}
+            </select>
+            <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 min-w-[140px]">
+              <option value="">All Roles</option>
+              {roles.map((r) => (<option key={r} value={r}>{r}</option>))}
+            </select>
+            <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 min-w-[120px]">
+              <option value="">All Months</option>
+              {monthNames.map((name, i) => (<option key={i} value={String(i)}>{name}</option>))}
+            </select>
+            {isFiltering && (
+              <button onClick={clearFilters}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                <X className="w-3.5 h-3.5" />
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
 
-        {/* Result count when filtering */}
-        {hasActiveFilters && (
+        {isFiltering && (
           <p className="text-xs text-gray-500 mb-3">
-            Showing {milestones.length} of {allMilestones.length} milestones
+            {"Showing " + milestones.length + " of " + allMilestones.length + " milestones"}
           </p>
         )}
 
         {/* Tabs */}
         <Tabs defaultValue="timeline" className="w-full">
-          <TabsList className="inline-flex h-10 bg-white border border-gray-200 rounded-lg p-1 mb-5">
+          <TabsList className="inline-flex h-10 bg-white border border-gray-200 rounded-lg p-1 mb-6">
             <TabsTrigger value="timeline" className="flex items-center gap-1.5 text-sm px-4 rounded-md data-[state=active]:bg-gray-900 data-[state=active]:text-white">
-              <List className="w-4 h-4" /> Timeline
+              <List className="w-4 h-4" />
+              Timeline
             </TabsTrigger>
             <TabsTrigger value="monthly" className="flex items-center gap-1.5 text-sm px-4 rounded-md data-[state=active]:bg-gray-900 data-[state=active]:text-white">
-              <Calendar className="w-4 h-4" /> Monthly
+              <Calendar className="w-4 h-4" />
+              Monthly
             </TabsTrigger>
             <TabsTrigger value="awards" className="flex items-center gap-1.5 text-sm px-4 rounded-md data-[state=active]:bg-gray-900 data-[state=active]:text-white">
-              <Award className="w-4 h-4" /> Awards
+              <Award className="w-4 h-4" />
+              Awards
             </TabsTrigger>
             <TabsTrigger value="preparation" className="flex items-center gap-1.5 text-sm px-4 rounded-md data-[state=active]:bg-gray-900 data-[state=active]:text-white">
-              <ClipboardCheck className="w-4 h-4" /> Preparation
+              <ClipboardCheck className="w-4 h-4" />
+              Preparation
             </TabsTrigger>
           </TabsList>
 
@@ -283,15 +412,17 @@ export default function App() {
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">All Milestones</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    All Milestones
+                  </h2>
                   <p className="text-sm text-gray-500">
                     {milestones.length} celebration{milestones.length !== 1 ? "s" : ""} in {selectedYear}
                   </p>
                 </div>
-                <div className="flex items-center gap-3 text-xs text-gray-500">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> 3yr</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> 5-7yr</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-purple-500" /> 10yr</span>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-green-500" /> 3yr</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-blue-500" /> 5-7yr</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-purple-500" /> 10yr</span>
                 </div>
               </div>
 
@@ -299,13 +430,20 @@ export default function App() {
                 <div className="overflow-x-auto pb-4">
                   <div className="flex items-start min-w-max px-4 py-6">
                     {milestones.map((milestone, index) => (
-                      <TimelineMilestone key={milestone.employee.id} milestone={milestone}
-                        isLast={index === milestones.length - 1} onClick={handlePersonClick} />
+                      <TimelineMilestone
+                        key={milestone.employee.id}
+                        milestone={milestone}
+                        isLast={index === milestones.length - 1}
+                        onClick={handlePersonClick}
+                      />
                     ))}
                   </div>
                 </div>
               ) : (
-                <EmptyState icon={Users} message={hasActiveFilters ? "No milestones match your filters" : `No milestone anniversaries in ${selectedYear}`} />
+                <div className="text-center py-16 text-gray-400">
+                  <Users className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                  <p>No milestone anniversaries in {selectedYear}</p>
+                </div>
               )}
             </div>
           </TabsContent>
@@ -315,61 +453,51 @@ export default function App() {
             <div className="space-y-0">
               {sortedMonths.length > 0 ? (
                 sortedMonths.map((month) => (
-                  <MonthlyAccordion key={month} month={month}
-                    milestones={groupedByMonth.get(month) || []} year={selectedYear}
-                    onPersonClick={handlePersonClick} />
+                  <MonthlyAccordion
+                    key={month}
+                    month={month}
+                    milestones={groupedByMonth.get(month) || []}
+                    year={selectedYear}
+                    onPersonClick={handlePersonClick}
+                  />
                 ))
               ) : (
-                <EmptyState icon={Calendar} message={hasActiveFilters ? "No milestones match your filters" : `No celebrations scheduled in ${selectedYear}`} />
+                <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
+                  <Calendar className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                  <p>No celebrations scheduled in {selectedYear}</p>
+                </div>
               )}
             </div>
           </TabsContent>
 
           {/* Awards View */}
           <TabsContent value="awards">
-            <CategoryView milestones={milestones} onPersonClick={handlePersonClick} />
+            <CategoryView
+              milestones={milestones}
+              onPersonClick={handlePersonClick}
+            />
           </TabsContent>
 
           {/* Preparation View */}
           <TabsContent value="preparation">
-            <CompletedView milestones={milestones} taskRecords={taskRecords} onPersonClick={handlePersonClick} />
+            <CompletedView
+              milestones={milestones}
+              taskRecords={taskRecords}
+              onPersonClick={handlePersonClick}
+            />
           </TabsContent>
         </Tabs>
       </div>
 
-      <PersonDetailDialog milestone={selectedMilestone} open={dialogOpen}
-        onOpenChange={setDialogOpen} sentLog={sentLog} taskRecords={taskRecords}
-        onToggleTask={handleToggleTask} />
-    </div>
-  );
-}
-
-function StatCard({ icon: Icon, iconBg, iconColor, value, label }: {
-  icon: React.ComponentType<{ className?: string }>; iconBg: string; iconColor: string;
-  value: number; label: string;
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-lg ${iconBg} flex items-center justify-center`}>
-          <Icon className={`w-5 h-5 ${iconColor}`} />
-        </div>
-        <div>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          <p className="text-xs text-gray-500">{label}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ icon: Icon, message }: {
-  icon: React.ComponentType<{ className?: string }>; message: string;
-}) {
-  return (
-    <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
-      <Icon className="w-10 h-10 mx-auto mb-3 opacity-40" />
-      <p>{message}</p>
+      {/* Person Detail Dialog */}
+      <PersonDetailDialog
+        milestone={selectedMilestone}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        sentLog={sentLog}
+        taskRecords={taskRecords}
+        onToggleTask={handleToggleTask}
+      />
     </div>
   );
 }
