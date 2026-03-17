@@ -148,6 +148,43 @@ function apiPlugin(): Plugin {
           return
         }
 
+        if (req.url === '/api/tasks' && req.method === 'GET') {
+          const authHeader = req.headers.authorization || ''
+          const token = authHeader.replace('Bearer ', '')
+          if (!token || !tokens.has(token)) {
+            sendJson(res, 401, { error: 'Unauthorized' })
+            return
+          }
+          try {
+            const gasRes = await fetch(`${GAS_WEB_APP_URL}?action=tasks`)
+            const data = await gasRes.json()
+            sendJson(res, 200, data)
+          } catch (err: any) {
+            console.error('GAS tasks fetch failed:', err)
+            sendJson(res, 500, { error: 'Failed to fetch tasks' })
+          }
+          return
+        }
+
+        if (req.url?.startsWith('/api/tasks?') && req.method === 'POST') {
+          const authHeader = req.headers.authorization || ''
+          const token = authHeader.replace('Bearer ', '')
+          if (!token || !tokens.has(token)) {
+            sendJson(res, 401, { error: 'Unauthorized' })
+            return
+          }
+          try {
+            const qs = req.url.split('?')[1] || ''
+            const gasRes = await fetch(`${GAS_WEB_APP_URL}?action=toggleTask&${qs}`)
+            const data = await gasRes.json()
+            sendJson(res, 200, data)
+          } catch (err: any) {
+            console.error('GAS toggleTask failed:', err)
+            sendJson(res, 500, { error: 'Failed to toggle task' })
+          }
+          return
+        }
+
         if (req.url === '/api/sentlog' && req.method === 'GET') {
           const authHeader = req.headers.authorization || ''
           const token = authHeader.replace('Bearer ', '')

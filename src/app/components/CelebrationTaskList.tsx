@@ -1,31 +1,21 @@
-import { useState } from "react";
 import type { CelebrationTask } from "../types/employee";
-import { loadTasks, toggleTask, getCompletionPercent } from "../utils/celebrationStorage";
+import { getCompletionPercent } from "../utils/celebrationStorage";
 import { Checkbox } from "./ui/checkbox";
 import { Progress } from "./ui/progress";
 import { CalendarDays, User } from "lucide-react";
 
 interface CelebrationTaskListProps {
-  employeeId: string;
-  year: number;
+  tasks: CelebrationTask[];
+  onToggle: (taskId: string) => void;
   milestoneDate: Date;
 }
 
 export function CelebrationTaskList({
-  employeeId,
-  year,
+  tasks,
+  onToggle,
   milestoneDate,
 }: CelebrationTaskListProps) {
-  const [tasks, setTasks] = useState<CelebrationTask[]>(() =>
-    loadTasks(employeeId, year)
-  );
-
   const percent = getCompletionPercent(tasks);
-
-  const handleToggle = (taskId: string) => {
-    const updated = toggleTask(employeeId, year, taskId);
-    setTasks(updated);
-  };
 
   function getDueDate(daysBefore: number): string {
     const d = new Date(milestoneDate);
@@ -55,7 +45,7 @@ export function CelebrationTaskList({
           >
             <Checkbox
               checked={task.completed}
-              onCheckedChange={() => handleToggle(task.id)}
+              onCheckedChange={() => onToggle(task.id)}
               className="mt-0.5"
             />
             <div className="flex-1 min-w-0">

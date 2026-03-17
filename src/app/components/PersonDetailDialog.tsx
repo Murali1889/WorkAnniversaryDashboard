@@ -1,8 +1,9 @@
 import { useState } from "react";
-import type { AnniversaryMilestone, SentLogEntry } from "../types/employee";
+import type { AnniversaryMilestone, SentLogEntry, TaskRecord } from "../types/employee";
 import { getAwardCategory } from "../config/awards";
 import { getSltForDepartment } from "../config/sltMapping";
 import { formatDate, getYearSuffix } from "../utils/anniversaryCalculator";
+import { buildTasks } from "../utils/celebrationStorage";
 import { CelebrationTaskList } from "./CelebrationTaskList";
 import { BotReminderTimeline } from "./BotReminderTimeline";
 import {
@@ -31,6 +32,15 @@ interface PersonDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sentLog: SentLogEntry[];
+  taskRecords: TaskRecord[];
+  onToggleTask: (
+    employeeId: string,
+    employeeName: string,
+    year: number,
+    milestone: number,
+    taskId: string,
+    completed: boolean
+  ) => void;
 }
 
 export function PersonDetailDialog({
@@ -38,6 +48,8 @@ export function PersonDetailDialog({
   open,
   onOpenChange,
   sentLog,
+  taskRecords,
+  onToggleTask,
 }: PersonDetailDialogProps) {
   const [activeTab, setActiveTab] = useState("details");
 
@@ -46,8 +58,21 @@ export function PersonDetailDialog({
   const { employee, years, date } = milestone;
   const award = getAwardCategory(years);
   const slt = getSltForDepartment(employee.department);
-
   const doj = new Date(employee.startDate);
+
+  const tasks = buildTasks(employee.id, milestone.year, taskRecords);
+
+  const handleToggle = (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    onToggleTask(
+      employee.id,
+      employee.name,
+      milestone.year,
+      years,
+      taskId,
+      !task?.completed
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -113,8 +138,8 @@ export function PersonDetailDialog({
           {/* Preparation Tab */}
           <TabsContent value="preparation" className="mt-4">
             <CelebrationTaskList
-              employeeId={employee.id}
-              year={milestone.year}
+              tasks={tasks}
+              onToggle={handleToggle}
               milestoneDate={date}
             />
           </TabsContent>

@@ -40,6 +40,15 @@ export interface BotReminder {
 
 export type AwardCategory = "builders" | "stewards" | "anchors" | "legacy";
 
+export interface TaskRecord {
+  employeeId: string;
+  employeeName: string;
+  year: number;
+  milestone: number;
+  tasks: Record<string, boolean>;
+  updatedAt: string;
+}
+
 export interface SentLogEntry {
   logKey: string;
   sentAt: string;

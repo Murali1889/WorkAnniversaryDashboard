@@ -124,6 +124,29 @@ app.get('/api/employees', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/tasks', requireAuth, async (req, res) => {
+  try {
+    const gasRes = await fetch(`${GAS_WEB_APP_URL}?action=tasks`);
+    const data = await gasRes.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to fetch tasks:', err);
+    res.status(500).json({ error: 'Failed to fetch tasks' });
+  }
+});
+
+app.post('/api/tasks', requireAuth, async (req, res) => {
+  try {
+    const params = new URLSearchParams(req.query);
+    const gasRes = await fetch(`${GAS_WEB_APP_URL}?action=toggleTask&${params}`);
+    const data = await gasRes.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to toggle task:', err);
+    res.status(500).json({ error: 'Failed to toggle task' });
+  }
+});
+
 app.get('/api/sentlog', requireAuth, async (req, res) => {
   try {
     const gasRes = await fetch(`${GAS_WEB_APP_URL}?action=sentlog`);

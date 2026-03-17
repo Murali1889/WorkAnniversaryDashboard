@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Employee, AnniversaryMilestone, SentLogEntry } from "./types/employee";
+import { Employee, AnniversaryMilestone, SentLogEntry, TaskRecord } from "./types/employee";
 import {
   calculateAnniversaries,
   groupMilestonesByMonth,
@@ -7,10 +7,11 @@ import {
 import { TimelineMilestone } from "./components/TimelineMilestone";
 import { MonthlyAccordion } from "./components/MonthlyAccordion";
 import { CategoryView } from "./components/CategoryView";
+import { CompletedView } from "./components/CompletedView";
 import { PersonDetailDialog } from "./components/PersonDetailDialog";
 import { LoginPage } from "./components/LoginPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { Calendar, List, LogOut, Loader2, RefreshCw, Award } from "lucide-react";
+import { Calendar, List, LogOut, Loader2, RefreshCw, Award, CheckCircle } from "lucide-react";
 
 export default function App() {
   const [token, setToken] = useState<string | null>(
@@ -18,6 +19,7 @@ export default function App() {
   );
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [sentLog, setSentLog] = useState<SentLogEntry[]>([]);
+  const [taskRecords, setTaskRecords] = useState<TaskRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -72,10 +74,17 @@ export default function App() {
       .then((res) => (res.ok ? res.json() : []))
       .catch(() => []);
 
-    Promise.all([empPromise, sentLogPromise])
-      .then(([empData, logData]) => {
+    const tasksPromise = fetch("/api/tasks", {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .catch(() => []);
+
+    Promise.all([empPromise, sentLogPromise, tasksPromise])
+      .then(([empData, logData, tasksData]) => {
         if (empData) setEmployees(empData);
         if (Array.isArray(logData)) setSentLog(logData);
+        if (Array.isArray(tasksData)) setTaskRecords(tasksData);
         setLoading(false);
         setRefreshing(false);
       })
@@ -84,6 +93,56 @@ export default function App() {
         setLoading(false);
         setRefreshing(false);
       });
+  };
+
+  const handleToggleTask = (
+    employeeId: string,
+    employeeName: string,
+    year: number,
+    milestone: number,
+    taskId: string,
+    completed: boolean
+  ) => {
+    // Optimistic update
+    setTaskRecords((prev) => {
+      const idx = prev.findIndex(
+        (r) => r.employeeId === employeeId && r.year === year
+      );
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          tasks: { ...updated[idx].tasks, [taskId]: completed },
+        };
+        return updated;
+      }
+      // New record
+      return [
+        ...prev,
+        {
+          employeeId,
+          employeeName,
+          year,
+          milestone,
+          tasks: { [taskId]: completed },
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+    });
+
+    // Fire-and-forget API call
+    const params = new URLSearchParams({
+      employeeId,
+      employeeName,
+      year: String(year),
+      milestone: String(milestone),
+      taskId,
+      completed: String(completed),
+    });
+    fetch(`/api/tasks?${params}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
   };
 
   const handleRefresh = () => {
@@ -182,7 +241,7 @@ export default function App() {
 
         {/* Tabs for different views */}
         <Tabs defaultValue="timeline" className="w-full">
-          <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 mb-8">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-4 mb-8">
             <TabsTrigger value="timeline" className="flex items-center gap-2">
               <List className="w-4 h-4" />
               Timeline
@@ -194,6 +253,10 @@ export default function App() {
             <TabsTrigger value="awards" className="flex items-center gap-2">
               <Award className="w-4 h-4" />
               Awards
+            </TabsTrigger>
+            <TabsTrigger value="completed" className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              Preparation
             </TabsTrigger>
           </TabsList>
 
@@ -275,6 +338,23 @@ export default function App() {
               onPersonClick={handlePersonClick}
             />
           </TabsContent>
+
+          {/* Preparation / Completed View */}
+          <TabsContent value="completed">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-1">
+                Preparation Status ({selectedYear})
+              </h2>
+              <p className="text-gray-500">
+                Track celebration readiness for each employee
+              </p>
+            </div>
+            <CompletedView
+              milestones={milestones}
+              taskRecords={taskRecords}
+              onPersonClick={handlePersonClick}
+            />
+          </TabsContent>
         </Tabs>
 
         {/* Stats Footer */}
@@ -306,6 +386,8 @@ export default function App() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         sentLog={sentLog}
+        taskRecords={taskRecords}
+        onToggleTask={handleToggleTask}
       />
     </div>
   );
