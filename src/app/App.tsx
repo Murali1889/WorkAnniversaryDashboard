@@ -12,6 +12,7 @@ import { TimelineMilestone } from "./components/TimelineMilestone";
 import { MonthlyAccordion } from "./components/MonthlyAccordion";
 import { CategoryView } from "./components/CategoryView";
 import { CompletedView } from "./components/CompletedView";
+import { YearlyView } from "./components/YearlyView";
 import { PersonDetailDialog } from "./components/PersonDetailDialog";
 import { LoginPage } from "./components/LoginPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
@@ -397,6 +398,10 @@ export default function App() {
               <Calendar className="w-4 h-4" />
               Monthly
             </TabsTrigger>
+            <TabsTrigger value="yearly" className="flex items-center gap-1.5 text-sm px-4 rounded-md data-[state=active]:bg-gray-900 data-[state=active]:text-white">
+              <CalendarDays className="w-4 h-4" />
+              Yearly
+            </TabsTrigger>
             <TabsTrigger value="awards" className="flex items-center gap-1.5 text-sm px-4 rounded-md data-[state=active]:bg-gray-900 data-[state=active]:text-white">
               <Award className="w-4 h-4" />
               Awards
@@ -468,6 +473,18 @@ export default function App() {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          {/* Yearly View */}
+          <TabsContent value="yearly">
+            <YearlyView
+              employees={employees}
+              onPersonClick={handlePersonClick}
+              searchQuery={searchQuery}
+              filterDept={filterDept}
+              filterRole={filterRole}
+              filterMonth={filterMonth}
+            />
           </TabsContent>
 
           {/* Awards View */}
