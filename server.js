@@ -106,7 +106,7 @@ async function fetchAllEmployees(accessToken) {
       const d = Array.isArray(rec[empId]) ? rec[empId][0] : rec[empId];
       if (!d) continue;
 
-      const allowedTypes = ['FT', 'FTE', 'FTC', 'Contract'];
+      const allowedTypes = ['FT', 'FTE', 'FTC'];
       if (d['Employeestatus'] !== 'Active' || !allowedTypes.includes(d['Employee_type'])) continue;
 
       const start = earliestDate(d);
