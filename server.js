@@ -34,105 +34,53 @@ function requireAuth(req, res, next) {
 // ─── GAS Web App URL (deploy Code.js as web app, paste URL here) ──
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwXinzBsH5UYAkFd744akbxSSWN1WrQhoaljuxBJwpLrLMRFSeulb-Rk6UmoQUunAxmHQ/exec';
 
-// ─── Zoho Config ─────────────────────────────────────────────
-const ZOHO = {
-  clientId: '1000.06ZBOVAU3FXQ6SLJ4F1J90L1AVFQVG',
-  clientSecret: '76cb03b8fe91727225ebfa990a14a30fd84af167a1',
-  refreshToken: '1000.f956461bd33b213d375c565ed870e7c0.b09056a46ab23ce11e16e3f14a7c68c5',
-  accountsUrl: 'https://accounts.zoho.in',
-  apiBase: 'https://people.zoho.in/api',
-};
+// ─── Employee data: via zoho-org-tree Supabase function ───────
+// Direct Zoho self-fetch was retired 2026-09-01 — its refresh token's
+// account got disabled org-side (Zoho error 7001) and silently returned
+// zero employees. zoho-org-tree already has a working, properly-secreted
+// Zoho connection, so we ride on that instead of re-authenticating our own.
+const ZOHO_ORG_TREE_URL = 'https://riiisqzwbhlytogcjdmn.supabase.co/functions/v1/zoho-org-tree?format=raw';
+// Only FT counts for anniversary tracking (per 572e32c) — FTE/FTC never
+// existed as real Zoho values, so this is equivalent to the old filter.
+const ALLOWED_EMPLOYEE_TYPES = ['FT'];
+const ZOHO_MONTHS = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 
-async function getZohoAccessToken() {
-  const params = new URLSearchParams({
-    grant_type: 'refresh_token',
-    client_id: ZOHO.clientId,
-    client_secret: ZOHO.clientSecret,
-    refresh_token: ZOHO.refreshToken,
-  });
+function parseZohoDate(raw) {
+  const m = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/.exec(String(raw || '').trim());
+  if (!m || !(m[2] in ZOHO_MONTHS)) return '';
+  const dd = String(Number(m[1])).padStart(2, '0');
+  const mm = String(ZOHO_MONTHS[m[2]] + 1).padStart(2, '0');
+  return `${m[3]}-${mm}-${dd}`;
+}
 
-  const res = await fetch(`${ZOHO.accountsUrl}/oauth/v2/token`, {
-    method: 'POST',
-    body: params,
-  });
+function cleanManagerName(raw) {
+  return String(raw || '').replace(/\s+\d+$/, '').trim();
+}
+
+async function fetchAllEmployees() {
+  const res = await fetch(ZOHO_ORG_TREE_URL);
   const data = await res.json();
-  if (!data.access_token) throw new Error('Zoho token refresh failed: ' + JSON.stringify(data));
-  return data.access_token;
-}
-
-function formatZohoDate(dateStr) {
-  if (!dateStr) return '';
-  const parsed = new Date(dateStr);
-  if (isNaN(parsed.getTime())) return '';
-  const yyyy = parsed.getFullYear();
-  const mm = String(parsed.getMonth() + 1).padStart(2, '0');
-  const dd = String(parsed.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function earliestDate(d) {
-  const candidates = [
-    d['Dateofjoining'],
-    d['Contractor_Start_Date'],
-    d['FTE_Start_Date'],
-  ];
-  let earliest = null;
-  for (const raw of candidates) {
-    if (!raw) continue;
-    const parsed = new Date(raw);
-    if (isNaN(parsed.getTime())) continue;
-    if (!earliest || parsed < earliest) earliest = parsed;
-  }
-  return earliest;
-}
-
-async function fetchAllEmployees(accessToken) {
-  const employees = [];
-  let index = 1;
-  const limit = 200;
-  const maxPages = 50;
-
-  for (let page = 0; page < maxPages; page++) {
-    const url = `${ZOHO.apiBase}/forms/employee/getRecords?sIndex=${index}&limit=${limit}`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
-    });
-    const raw = await res.json();
-    const records = raw?.response?.result;
-    if (!records || !Array.isArray(records) || records.length === 0) break;
-
-    for (const rec of records) {
-      const empId = Object.keys(rec)[0];
-      const d = Array.isArray(rec[empId]) ? rec[empId][0] : rec[empId];
-      if (!d) continue;
-
-      const allowedTypes = ['FT', 'FTE', 'FTC'];
-      if (d['Employeestatus'] !== 'Active' || !allowedTypes.includes(d['Employee_type'])) continue;
-
-      const start = earliestDate(d);
-      employees.push({
-        id: d['EmployeeID'] || empId,
-        name: ((d['FirstName'] || '') + ' ' + (d['LastName'] || '')).trim() || 'Unknown',
-        position: d['Designation'] || '',
-        startDate: start ? formatZohoDate(start.toISOString()) : formatZohoDate(d['Dateofjoining'] || ''),
-        department: d['Department'] || '',
-        reportingTo: d['Reporting_To'] || '',
-      });
-    }
-
-    if (records.length < limit) break;
-    index += limit;
+  if (!res.ok || !Array.isArray(data.employees)) {
+    throw new Error('zoho-org-tree fetch failed: ' + JSON.stringify(data).slice(0, 300));
   }
 
-  return employees;
+  return data.employees
+    .filter((e) => ALLOWED_EMPLOYEE_TYPES.includes(e.employment_type))
+    .map((e) => ({
+      id: e.emp_id || e.email,
+      name: `${e.first_name || ''} ${e.last_name || ''}`.trim() || 'Unknown',
+      position: e.designation || '',
+      startDate: parseZohoDate(e.date_of_joining),
+      department: e.department || '',
+      reportingTo: cleanManagerName(e.reporting_manager_raw),
+    }));
 }
 
 // ─── API Routes ──────────────────────────────────────────────
 
 app.get('/api/employees', requireAuth, async (req, res) => {
   try {
-    const accessToken = await getZohoAccessToken();
-    const employees = await fetchAllEmployees(accessToken);
+    const employees = await fetchAllEmployees();
     res.json(employees);
   } catch (err) {
     console.error('Failed to fetch employees:', err);
