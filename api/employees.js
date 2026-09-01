@@ -4,9 +4,7 @@
 // zero employees. zoho-org-tree already has a working, properly-secreted
 // Zoho connection, so we ride on that instead of re-authenticating our own.
 const ZOHO_ORG_TREE_URL = 'https://riiisqzwbhlytogcjdmn.supabase.co/functions/v1/zoho-org-tree?format=raw';
-// Only FT counts for anniversary tracking (per 572e32c) — FTE/FTC never
-// existed as real Zoho values, so this is equivalent to the old filter.
-const ALLOWED_EMPLOYEE_TYPES = ['FT'];
+const ALLOWED_EMPLOYEE_TYPES = ['FT', 'Contract'];
 const ZOHO_MONTHS = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 
 function parseZohoDate(raw) {
