@@ -20,7 +20,9 @@ function cleanManagerName(raw) {
 }
 
 async function fetchAllEmployees() {
-  const res = await fetch(ZOHO_ORG_TREE_URL);
+  const res = await fetch(ZOHO_ORG_TREE_URL, {
+    headers: { 'x-internal-secret': process.env.ZOHO_ORG_TREE_SECRET || '' },
+  });
   const data = await res.json();
   if (!res.ok || !Array.isArray(data.employees)) {
     throw new Error('zoho-org-tree fetch failed: ' + JSON.stringify(data).slice(0, 300));
